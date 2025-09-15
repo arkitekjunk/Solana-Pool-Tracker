@@ -1230,8 +1230,9 @@ async function autoRefreshTradingData() {
 setInterval(autoRefreshTradingData, 10 * 60 * 1000); // 10 minutes
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Solana Pool Tracker running on http://localhost:${PORT}`);
+const server = app.listen(PORT, () => {
+  const actualPort = server.address().port;
+  console.log(`🚀 Solana Pool Tracker running on http://localhost:${actualPort}`);
   console.log(`📊 Monitoring ${Object.keys(PROGRAM_IDS).length} program IDs for pool creation`);
   console.log(`🕐 Timestamps in Australia/Brisbane timezone`);
   console.log(`🔄 Auto-refresh enabled: Trading data updates every 10 minutes`);
