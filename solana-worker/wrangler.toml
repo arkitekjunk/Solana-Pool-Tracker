@@ -1,0 +1,14 @@
+name = "solana-worker"
+main = "index.js"
+compatibility_date = "2024-09-15"
+
+[vars]
+NODE_ENV = "production"
+
+[[durable_objects.bindings]]
+name = "PUMPPORTAL_TRACKER"
+class_name = "PumpPortalTracker"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PumpPortalTracker"]

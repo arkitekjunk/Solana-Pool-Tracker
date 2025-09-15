@@ -411,8 +411,8 @@
                 </button>
                 <button class="tab-btn" onclick="switchTab('moralis')" id="moralisTab">
                     <span>🎓</span>
-                    <span>Graduated (Moralis)</span>
-                    <span id="moralisStatus" class="status-chip status-disconnected">Disconnected</span>
+                    <span>Graduated (PumpPortal)</span>
+                    <span id="pumpPortalStatus" class="status-chip status-disconnected">Disconnected</span>
                 </button>
             </div>
 
@@ -541,16 +541,19 @@
 
     <script>
         let eventSource;
-        let moralisEventSource;
+        let pumpPortalEventSource;
         let poolCount = 0;
         let graduateCount = 0;
         let activeTab = 'helius';
         const seenGraduates = new Set();
         let allGraduates = []; // Store all graduates for sorting
         
-        // Initialize SSE connection
+        // Initialize SSE connection (disabled - using Worker for pump.fun only)
         function connectSSE() {
-            
+            // Helius connection disabled - only using PumpPortal via Worker
+            document.getElementById('heliusStatus').className = 'status-chip status-disconnected';
+            document.getElementById('heliusStatus').textContent = 'Helius Disabled';
+            /*
             eventSource = new EventSource('/events');
             
             eventSource.onopen = function() {
@@ -589,6 +592,7 @@
                     clearAllData();
                 }
             };
+            */
         }
         
         // Get program badge class
@@ -759,29 +763,29 @@
             tableContainer.style.display = 'none';
         }
         
-        // Initialize Moralis SSE connection
-        function connectMoralisSSE() {
-            moralisEventSource = new EventSource('/moralis/events');
+        // Initialize PumpPortal SSE connection
+        function connectPumpPortalSSE() {
+            pumpPortalEventSource = new EventSource('https://solana-worker.arkitekjunk.workers.dev/pumpportal/events');
             
-            moralisEventSource.onopen = function() {
-                document.getElementById('moralisStatus').className = 'status-chip status-connected';
-                document.getElementById('moralisStatus').textContent = 'Connected';
+            pumpPortalEventSource.onopen = function() {
+                document.getElementById('pumpPortalStatus').className = 'status-chip status-connected';
+                document.getElementById('pumpPortalStatus').textContent = 'Connected';
             };
             
-            moralisEventSource.onerror = function() {
-                document.getElementById('moralisStatus').className = 'status-chip status-disconnected';
-                document.getElementById('moralisStatus').textContent = 'Disconnected';
+            pumpPortalEventSource.onerror = function() {
+                document.getElementById('pumpPortalStatus').className = 'status-chip status-disconnected';
+                document.getElementById('pumpPortalStatus').textContent = 'Disconnected';
                 
                 // Reconnect after 5 seconds
                 setTimeout(() => {
-                    if (moralisEventSource) {
-                        moralisEventSource.close();
+                    if (pumpPortalEventSource) {
+                        pumpPortalEventSource.close();
                     }
-                    connectMoralisSSE();
+                    connectPumpPortalSSE();
                 }, 5000);
             };
             
-            moralisEventSource.onmessage = function(event) {
+            pumpPortalEventSource.onmessage = function(event) {
                 const message = JSON.parse(event.data);
                 
                 if (message.type === 'graduates') {
@@ -807,8 +811,8 @@
             document.getElementById('moralisContent').classList.toggle('active', tabName === 'moralis');
             
             // Connect to appropriate SSE if not already connected
-            if (tabName === 'moralis' && !moralisEventSource) {
-                connectMoralisSSE();
+            if (tabName === 'moralis' && !pumpPortalEventSource) {
+                connectPumpPortalSSE();
             }
         }
         
@@ -1122,7 +1126,7 @@
             button.className = 'scanner-btn scanner-running';
             
             // Call backend endpoint to send test telegram message
-            fetch('/api/test-telegram', { method: 'POST' })
+            fetch('https://solana-worker.arkitekjunk.workers.dev/api/test-telegram', { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
                     console.log('Test Telegram message sent:', data);
