@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana Pool Tracker - Live</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.2em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        .status-connected {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .status-disconnected {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .counter {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .scanner-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+        }
+
+        .scanner-stopped {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .scanner-stopped:hover {
+            background: #ffcdd2;
+        }
+
+        .scanner-running {
+            background: #e8f5e8;
+            color: #2e7d32;
+            animation: pulse 2s infinite;
+        }
+
+        .scanner-running:hover {
+            background: #c8e6c9;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .main-content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            min-height: 500px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state h2 {
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        .program-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .raydium-v4 { background: #ff6b35; color: white; }
+        .raydium-cp { background: #f7931e; color: white; }
+        .raydium-clmm { background: #ff4081; color: white; }
+        .orca-whirlpools { background: #00d4aa; color: white; }
+        .orca-token-swap { background: #0088cc; color: white; }
+        .meteora-dlmm { background: #6366f1; color: white; }
+        .pump-fun { background: #9c27b0; color: white; }
+        .pumpswap-amm { background: #e91e63; color: white; }
+
+        .clear-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .clear-btn:hover {
+            background: #ffcdd2;
+        }
+
+        .tab-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab-btn {
+            padding: 12px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-weight: 500;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            background: #f5f5f5;
+        }
+
+        .tab-btn.active {
+            background: white;
+            border-bottom: 3px solid #667eea;
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .status-chip {
+            font-size: 0.8em;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .status-connected {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .status-disconnected {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .signature-link, .pool-link {
+            color: #1976d2;
+            text-decoration: none;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .signature-link:hover, .pool-link:hover {
+            text-decoration: underline;
+        }
+
+        .token-mint {
+            font-family: monospace;
+            font-size: 0.8em;
+            color: #666;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .token-name {
+            font-weight: 600;
+            color: #2c3e50;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .token-symbol {
+            font-weight: 500;
+            color: #7b1fa2;
+            background: #f3e5f5;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            text-align: center;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.8em;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-copy {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .btn-copy:hover {
+            background: #bbdefb;
+        }
+
+        .btn-external {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .btn-external:hover {
+            background: #e1bee7;
+        }
+
+        .timestamp {
+            font-size: 0.9em;
+            color: #666;
+            white-space: nowrap;
+        }
+
+        .liquidity {
+            font-weight: 600;
+            color: #2e7d32;
+        }
+
+        .loading {
+            color: #ff9800;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .status-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            table {
+                font-size: 0.9em;
+            }
+            
+            .actions {
+                flex-direction: column;
+                gap: 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌊 Solana Pool Tracker</h1>
+            <div class="status-bar">
+                <div id="connectionStatus" class="status-item status-disconnected">
+                    🔴 Disconnected
+                </div>
+                <div id="poolCounter" class="status-item counter">
+                    📊 0 pools detected
+                </div>
+                <div class="status-item counter">
+                    🕐 Australia/Brisbane (UTC+10)
+                </div>
+                <div class="status-item counter">
+                    🎯 Live Pool Scanner Active
+                </div>
+                <button id="clearDataBtn" class="clear-btn" onclick="clearData()">
+                    <span>🗑️</span>
+                    <span>Clear Data</span>
+                </button>
+                <button id="testTelegramBtn" class="scanner-btn scanner-stopped" onclick="testTelegram()">
+                    <span>📱</span>
+                    <span>Test Telegram</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchTab('helius')" id="heliusTab">
+                    <span>📊</span>
+                    <span>New Pools (Helius)</span>
+                    <span id="heliusStatus" class="status-chip status-disconnected">Disconnected</span>
+                </button>
+                <button class="tab-btn" onclick="switchTab('moralis')" id="moralisTab">
+                    <span>🎓</span>
+                    <span>Graduated (Moralis)</span>
+                    <span id="moralisStatus" class="status-chip status-disconnected">Disconnected</span>
+                </button>
+            </div>
+
+            <!-- Helius Tab Content -->
+            <div id="heliusContent" class="tab-content active">
+                <div id="emptyState" class="empty-state">
+                    <h2>🎯 Waiting for new liquidity pools...</h2>
+                    <p>Monitoring Raydium, Orca, and Meteora DEXs for new liquidity pools on Solana mainnet.</p>
+                    <p style="margin-top: 10px; color: #999; font-size: 0.9em;">No test data - only live mainnet events will appear here.</p>
+                </div>
+                
+                <div id="tableContainer" class="table-container" style="display: none;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time (AEST)</th>
+                                <th>Program</th>
+                                <th>Token Name</th>
+                                <th>Token Symbol</th>
+                                <th>Signature</th>
+                                <th>Mint Address</th>
+                                <th>Liquidity</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="poolsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Moralis Tab Content -->
+            <div id="moralisContent" class="tab-content">
+                <div id="moralisEmptyState" class="empty-state">
+                    <h2>🎓 Waiting for graduates...</h2>
+                    <p>Monitoring pump.fun for tokens that have graduated to Raydium via Moralis API.</p>
+                    <p style="margin-top: 10px; color: #999; font-size: 0.9em;">No test data - only live graduate events will appear here.</p>
+                </div>
+                
+                <div id="moralisTableContainer" class="table-container" style="display: none;">
+                    <!-- Sorting Controls -->
+                    <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <span style="font-weight: 600; color: #2c3e50;">Sort by:</span>
+                        <select id="sortBy" onchange="sortGraduates()" style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9em;">
+                            <option value="time-desc">Graduation Time (Newest First)</option>
+                            <option value="time-asc">Graduation Time (Oldest First)</option>
+                            <option value="price-desc">Price (Highest First)</option>
+                            <option value="price-asc">Price (Lowest First)</option>
+                            <option value="volume-desc">Volume 24h (Highest First)</option>
+                            <option value="volume-asc">Volume 24h (Lowest First)</option>
+                            <option value="marketcap-desc">Market Cap (Highest First)</option>
+                            <option value="marketcap-asc">Market Cap (Lowest First)</option>
+                            <option value="pricechange-desc">Price Change 24h (Best First)</option>
+                            <option value="pricechange-asc">Price Change 24h (Worst First)</option>
+                            <option value="txns-desc">Transactions 24h (Most Active)</option>
+                            <option value="txns-asc">Transactions 24h (Least Active)</option>
+                        </select>
+                        
+                        <button id="refreshTradingData" onclick="refreshTradingData()" style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; background: #f8f9fa; cursor: pointer; font-size: 0.9em; display: flex; align-items: center; gap: 4px;">
+                            <span>🔄</span>
+                            <span>Refresh Trading Data</span>
+                        </button>
+                        
+                        <span style="font-size: 0.85em; color: #666;">(Free - Updates prices, volume, transactions)</span>
+                    </div>
+
+                    <!-- Recent Graduates Section -->
+                    <div id="recentGraduatesSection">
+                        <h3 style="color: #2c3e50; margin: 20px 0 10px 0; display: flex; align-items: center; gap: 8px;">
+                            <span>🔥</span>
+                            <span>Recent Graduates (Last Hour)</span>
+                            <span id="recentCount" style="background: #e8f5e8; color: #2e7d32; padding: 2px 8px; border-radius: 12px; font-size: 0.8em;">0</span>
+                        </h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time (AEST)</th>
+                                    <th>Mint</th>
+                                    <th>Name/Symbol</th>
+                                    <th>Graduated At</th>
+                                    <th>Price (USD)</th>
+                                    <th>Price Change</th>
+                                    <th>Volume 24h</th>
+                                    <th>Transactions 24h</th>
+                                    <th>Market Cap</th>
+                                    <th>DEX Pair</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentGraduatesBody">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Older Graduates Section -->
+                    <div id="olderGraduatesSection" style="margin-top: 30px;">
+                        <h3 style="color: #2c3e50; margin: 20px 0 10px 0; display: flex; align-items: center; gap: 8px;">
+                            <span>📚</span>
+                            <span>Earlier Graduates</span>
+                            <span id="olderCount" style="background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 12px; font-size: 0.8em;">0</span>
+                        </h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time (AEST)</th>
+                                    <th>Mint</th>
+                                    <th>Name/Symbol</th>
+                                    <th>Graduated At</th>
+                                    <th>Price (USD)</th>
+                                    <th>Price Change</th>
+                                    <th>Volume 24h</th>
+                                    <th>Transactions 24h</th>
+                                    <th>Market Cap</th>
+                                    <th>DEX Pair</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="olderGraduatesBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let eventSource;
+        let moralisEventSource;
+        let poolCount = 0;
+        let graduateCount = 0;
+        let activeTab = 'helius';
+        const seenGraduates = new Set();
+        let allGraduates = []; // Store all graduates for sorting
+        
+        // Initialize SSE connection
+        function connectSSE() {
+            
+            eventSource = new EventSource('/events');
+            
+            eventSource.onopen = function() {
+                document.getElementById('connectionStatus').className = 'status-item status-connected';
+                document.getElementById('connectionStatus').textContent = '✅ Connected';
+                document.getElementById('heliusStatus').className = 'status-chip status-connected';
+                document.getElementById('heliusStatus').textContent = 'Connected';
+            };
+            
+            eventSource.onerror = function() {
+                document.getElementById('connectionStatus').className = 'status-item status-disconnected';
+                document.getElementById('connectionStatus').textContent = '🔴 Disconnected';
+                document.getElementById('heliusStatus').className = 'status-chip status-disconnected';
+                document.getElementById('heliusStatus').textContent = 'Disconnected';
+                
+                // Reconnect after 5 seconds
+                setTimeout(() => {
+                    if (eventSource) {
+                        eventSource.close();
+                    }
+                    connectSSE();
+                }, 5000);
+            };
+            
+            eventSource.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                
+                if (message.type === 'pools') {
+                    // Initial pool data
+                    renderPools(message.data);
+                } else if (message.type === 'newPool') {
+                    // New pool detected
+                    addNewPool(message.data);
+                } else if (message.type === 'clear') {
+                    // Data cleared
+                    clearAllData();
+                }
+            };
+        }
+        
+        // Get program badge class
+        function getProgramBadgeClass(program) {
+            const map = {
+                'Raydium AMM v4': 'raydium-v4',
+                'Raydium CP-Swap': 'raydium-cp', 
+                'Raydium CLMM': 'raydium-clmm',
+                'Orca Whirlpools': 'orca-whirlpools',
+                'Orca Token-Swap v2': 'orca-token-swap',
+                'Meteora DLMM': 'meteora-dlmm',
+                'Pump.fun': 'pump-fun',
+                'PumpSwap AMM': 'pumpswap-amm'
+            };
+            return map[program] || 'raydium-v4';
+        }
+        
+        // Format timestamp
+        function formatTimestamp(timestamp) {
+            return new Date(timestamp).toLocaleString('en-AU', {
+                timeZone: 'Australia/Brisbane',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+        
+        // Truncate address
+        function truncateAddress(address, start = 6, end = 4) {
+            if (!address || address.length <= start + end) return address || 'N/A';
+            return `${address.slice(0, start)}...${address.slice(-end)}`;
+        }
+        
+        // Copy to clipboard
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                // Could add a toast notification here
+            });
+        }
+        
+        // Create pool row
+        function createPoolRow(pool) {
+            const row = document.createElement('tr');
+            
+            // Determine which token to display (prefer the non-SOL token for pump.fun)
+            let displayTokenName = pool.tokenNameA || 'Loading...';
+            let displayTokenSymbol = pool.tokenSymbolA || 'Loading...';
+            let displayTokenMint = pool.tokenMintA;
+            
+            // If token A is SOL/WSOL, prefer token B
+            if (pool.tokenMintA === 'So11111111111111111111111111111111111111112' && pool.tokenNameB) {
+                displayTokenName = pool.tokenNameB;
+                displayTokenSymbol = pool.tokenSymbolB;
+                displayTokenMint = pool.tokenMintB;
+            }
+            
+            row.innerHTML = `
+                <td class="timestamp">${formatTimestamp(pool.timestamp)}</td>
+                <td>
+                    <span class="program-badge ${getProgramBadgeClass(pool.program)}">${pool.program}</span>
+                </td>
+                <td class="token-name" title="${displayTokenName || 'N/A'}">${displayTokenName || 'Loading...'}</td>
+                <td class="token-symbol" title="${displayTokenSymbol || 'N/A'}">${displayTokenSymbol || 'Loading...'}</td>
+                <td>
+                    <a href="https://solscan.io/tx/${pool.signature}" target="_blank" class="signature-link">
+                        ${truncateAddress(pool.signature, 8, 6)}
+                    </a>
+                </td>
+                <td class="token-mint" title="${displayTokenMint || 'N/A'}">${truncateAddress(displayTokenMint)}</td>
+                <td class="${pool.liquidity ? 'liquidity' : 'loading'}">
+                    ${pool.liquidity || 'Loading...'}
+                </td>
+                <td class="actions">
+                    <button class="btn btn-copy" onclick="copyToClipboard('${displayTokenMint}')" title="Copy mint address">📋</button>
+                    ${displayTokenMint ? 
+                        `<a href="https://dexscreener.com/solana/${displayTokenMint}" target="_blank" class="btn btn-external" title="Dexscreener">🔍</a>` : ''
+                    }
+                    <a href="https://solscan.io/tx/${pool.signature}" target="_blank" class="btn btn-external" title="Solscan">🔗</a>
+                </td>
+            `;
+            
+            return row;
+        }
+        
+        // Render all pools
+        function renderPools(pools) {
+            const tbody = document.getElementById('poolsTableBody');
+            const emptyState = document.getElementById('emptyState');
+            const tableContainer = document.getElementById('tableContainer');
+            
+            poolCount = pools.length;
+            updatePoolCounter();
+            
+            if (pools.length === 0) {
+                emptyState.style.display = 'block';
+                tableContainer.style.display = 'none';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            tableContainer.style.display = 'block';
+            
+            tbody.innerHTML = '';
+            pools.forEach(pool => {
+                tbody.appendChild(createPoolRow(pool));
+            });
+        }
+        
+        // Add new pool to top of table
+        function addNewPool(pool) {
+            const tbody = document.getElementById('poolsTableBody');
+            const emptyState = document.getElementById('emptyState');
+            const tableContainer = document.getElementById('tableContainer');
+            
+            // Show table if first pool
+            if (poolCount === 0) {
+                emptyState.style.display = 'none';
+                tableContainer.style.display = 'block';
+            }
+            
+            // Add to top of table
+            tbody.insertBefore(createPoolRow(pool), tbody.firstChild);
+            
+            poolCount++;
+            updatePoolCounter();
+            
+            // Highlight new row briefly
+            const newRow = tbody.firstChild;
+            newRow.style.background = '#e8f5e8';
+            setTimeout(() => {
+                newRow.style.background = '';
+            }, 2000);
+        }
+        
+        // Update pool counter
+        function updatePoolCounter() {
+            document.getElementById('poolCounter').textContent = `📊 ${poolCount} pools detected`;
+        }
+        
+        // Clear all data
+        function clearData() {
+            if (confirm('Are you sure you want to clear all pool data?')) {
+                fetch('/api/data/clear', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Data cleared:', data);
+                    })
+                    .catch(error => {
+                        console.error('Failed to clear data:', error);
+                    });
+            }
+        }
+        
+        // Clear all data from UI
+        function clearAllData() {
+            poolCount = 0;
+            updatePoolCounter();
+            
+            const tbody = document.getElementById('poolsTableBody');
+            const emptyState = document.getElementById('emptyState');
+            const tableContainer = document.getElementById('tableContainer');
+            
+            tbody.innerHTML = '';
+            emptyState.style.display = 'block';
+            tableContainer.style.display = 'none';
+        }
+        
+        // Initialize Moralis SSE connection
+        function connectMoralisSSE() {
+            moralisEventSource = new EventSource('/moralis/events');
+            
+            moralisEventSource.onopen = function() {
+                document.getElementById('moralisStatus').className = 'status-chip status-connected';
+                document.getElementById('moralisStatus').textContent = 'Connected';
+            };
+            
+            moralisEventSource.onerror = function() {
+                document.getElementById('moralisStatus').className = 'status-chip status-disconnected';
+                document.getElementById('moralisStatus').textContent = 'Disconnected';
+                
+                // Reconnect after 5 seconds
+                setTimeout(() => {
+                    if (moralisEventSource) {
+                        moralisEventSource.close();
+                    }
+                    connectMoralisSSE();
+                }, 5000);
+            };
+            
+            moralisEventSource.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                
+                if (message.type === 'graduates') {
+                    // Initial graduate data
+                    renderGraduates(message.data);
+                } else if (message.type === 'newGraduate') {
+                    // New graduate detected or existing graduate updated
+                    updateOrAddGraduate(message.data);
+                }
+            };
+        }
+        
+        // Switch between tabs
+        function switchTab(tabName) {
+            activeTab = tabName;
+            
+            // Update tab buttons
+            document.getElementById('heliusTab').classList.toggle('active', tabName === 'helius');
+            document.getElementById('moralisTab').classList.toggle('active', tabName === 'moralis');
+            
+            // Update tab content
+            document.getElementById('heliusContent').classList.toggle('active', tabName === 'helius');
+            document.getElementById('moralisContent').classList.toggle('active', tabName === 'moralis');
+            
+            // Connect to appropriate SSE if not already connected
+            if (tabName === 'moralis' && !moralisEventSource) {
+                connectMoralisSSE();
+            }
+        }
+        
+        // Format relative time
+        function formatRelativeTime(dateString) {
+            if (!dateString) return 'Unknown';
+            
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            return `${diffDays}d ago`;
+        }
+        
+        // Create graduate row
+        function createGraduateRow(graduate) {
+            const row = document.createElement('tr');
+            
+            const nameSymbol = graduate.name && graduate.symbol 
+                ? `${graduate.name} (${graduate.symbol})`
+                : graduate.name || graduate.symbol || truncateAddress(graduate.mint, 8, 6);
+            
+            // Price (use Dexscreener current price if available, otherwise Moralis data)
+            const priceText = graduate.priceUsdCurrent 
+                ? `$${parseFloat(graduate.priceUsdCurrent).toFixed(6)}`
+                : graduate.priceUsd 
+                ? `$${parseFloat(graduate.priceUsd).toFixed(6)}`
+                : graduate.liquidityUsd 
+                ? `$${parseFloat(graduate.liquidityUsd).toLocaleString()}`
+                : '<span style="color: #999;">Loading...</span>';
+
+            // Price Change (24h with color coding)
+            const priceChange24h = graduate.priceChange24h;
+            const priceChangeText = priceChange24h !== null && priceChange24h !== undefined
+                ? `<span style="color: ${priceChange24h >= 0 ? '#2e7d32' : '#c62828'}; font-weight: 600;">${priceChange24h >= 0 ? '+' : ''}${parseFloat(priceChange24h).toFixed(2)}%</span>`
+                : '<span style="color: #999;">Loading...</span>';
+
+            // Volume 24h
+            const volume24hText = graduate.volume24h 
+                ? `$${parseFloat(graduate.volume24h).toLocaleString()}`
+                : '<span style="color: #999;">Loading...</span>';
+
+            // Transactions 24h (buys + sells)
+            const txns24hText = graduate.txns24h && (graduate.txns24h.buys || graduate.txns24h.sells)
+                ? `${(graduate.txns24h.buys || 0) + (graduate.txns24h.sells || 0)} (${graduate.txns24h.buys || 0}B/${graduate.txns24h.sells || 0}S)`
+                : '<span style="color: #999;">Loading...</span>';
+
+            // Market Cap
+            const marketCapText = graduate.marketCap 
+                ? `$${parseFloat(graduate.marketCap).toLocaleString()}`
+                : '<span style="color: #999;">Loading...</span>';
+            
+            const relativeTime = formatRelativeTime(graduate.graduatedAt);
+            const exactTime = graduate.graduatedAt 
+                ? new Date(graduate.graduatedAt).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' })
+                : 'Unknown';
+            
+            const dexPairCell = graduate.dexscreenerUrl && graduate.graduationDex
+                ? `<a href="${graduate.dexscreenerUrl}" target="_blank" class="btn btn-external" title="View ${graduate.graduationDex} pair" style="background: #f3e5f5; color: #7b1fa2; text-decoration: none; padding: 2px 6px; border-radius: 8px; font-size: 0.8em;">${graduate.graduationDex.toUpperCase()}</a>`
+                : '<span style="color: #999; font-size: 0.9em;">Loading...</span>';
+
+            row.innerHTML = `
+                <td class="timestamp">${formatTimestamp(graduate.timestamp)}</td>
+                <td class="token-mint" title="${graduate.mint}">${truncateAddress(graduate.mint)}</td>
+                <td class="token-name" title="${nameSymbol}">${nameSymbol}</td>
+                <td title="${exactTime}">${relativeTime}</td>
+                <td class="liquidity">${priceText}</td>
+                <td>${priceChangeText}</td>
+                <td class="liquidity">${volume24hText}</td>
+                <td style="font-size: 0.85em;">${txns24hText}</td>
+                <td class="liquidity">${marketCapText}</td>
+                <td>${dexPairCell}</td>
+                <td class="actions">
+                    <button class="btn btn-copy" onclick="copyToClipboard('${graduate.mint}')" title="Copy mint address">📋</button>
+                    <a href="https://solscan.io/token/${graduate.mint}" target="_blank" class="btn btn-external" title="Solscan">🔗</a>
+                    ${graduate.dexscreenerUrl ? 
+                        `<a href="${graduate.dexscreenerUrl}" target="_blank" class="btn btn-external" title="Dexscreener">🔍</a>` :
+                        `<a href="https://dexscreener.com/solana/${graduate.mint}" target="_blank" class="btn btn-external" title="Dexscreener">🔍</a>`
+                    }
+                    ${graduate.pumpfunUrl ? `<a href="${graduate.pumpfunUrl}" target="_blank" class="btn btn-external" title="Pump.fun">🚀</a>` : ''}
+                </td>
+            `;
+            
+            return row;
+        }
+        
+        // Check if a graduate is from the last hour
+        function isRecentGraduate(graduate) {
+            if (!graduate.graduatedAt) return false;
+            const graduateTime = new Date(graduate.graduatedAt);
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+            return graduateTime >= oneHourAgo;
+        }
+
+        // Sort graduates based on selected criteria
+        function sortGraduates() {
+            const sortBy = document.getElementById('sortBy').value;
+            
+            const sortedGraduates = [...allGraduates].sort((a, b) => {
+                switch (sortBy) {
+                    case 'time-desc':
+                        return new Date(b.graduatedAt || 0) - new Date(a.graduatedAt || 0);
+                    case 'time-asc':
+                        return new Date(a.graduatedAt || 0) - new Date(b.graduatedAt || 0);
+                    case 'price-desc':
+                        return parseFloat(b.priceUsdCurrent || b.priceUsd || 0) - parseFloat(a.priceUsdCurrent || a.priceUsd || 0);
+                    case 'price-asc':
+                        return parseFloat(a.priceUsdCurrent || a.priceUsd || 0) - parseFloat(b.priceUsdCurrent || b.priceUsd || 0);
+                    case 'volume-desc':
+                        return parseFloat(b.volume24h || 0) - parseFloat(a.volume24h || 0);
+                    case 'volume-asc':
+                        return parseFloat(a.volume24h || 0) - parseFloat(b.volume24h || 0);
+                    case 'marketcap-desc':
+                        return parseFloat(b.marketCap || 0) - parseFloat(a.marketCap || 0);
+                    case 'marketcap-asc':
+                        return parseFloat(a.marketCap || 0) - parseFloat(b.marketCap || 0);
+                    case 'pricechange-desc':
+                        return parseFloat(b.priceChange24h || 0) - parseFloat(a.priceChange24h || 0);
+                    case 'pricechange-asc':
+                        return parseFloat(a.priceChange24h || 0) - parseFloat(b.priceChange24h || 0);
+                    case 'txns-desc':
+                        const bTxns = (b.txns24h?.buys || 0) + (b.txns24h?.sells || 0);
+                        const aTxns = (a.txns24h?.buys || 0) + (a.txns24h?.sells || 0);
+                        return bTxns - aTxns;
+                    case 'txns-asc':
+                        const aTxns2 = (a.txns24h?.buys || 0) + (a.txns24h?.sells || 0);
+                        const bTxns2 = (b.txns24h?.buys || 0) + (b.txns24h?.sells || 0);
+                        return aTxns2 - bTxns2;
+                    default:
+                        return 0;
+                }
+            });
+            
+            renderGraduatesFromArray(sortedGraduates);
+        }
+
+        // Render graduates from array (for sorting)
+        function renderGraduatesFromArray(graduates) {
+            const emptyState = document.getElementById('moralisEmptyState');
+            const tableContainer = document.getElementById('moralisTableContainer');
+            const recentBody = document.getElementById('recentGraduatesBody');
+            const olderBody = document.getElementById('olderGraduatesBody');
+            const recentCount = document.getElementById('recentCount');
+            const olderCount = document.getElementById('olderCount');
+            const recentSection = document.getElementById('recentGraduatesSection');
+            const olderSection = document.getElementById('olderGraduatesSection');
+            
+            if (graduates.length === 0) {
+                emptyState.style.display = 'block';
+                tableContainer.style.display = 'none';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            tableContainer.style.display = 'block';
+            
+            // Clear both sections
+            recentBody.innerHTML = '';
+            olderBody.innerHTML = '';
+            
+            let recentGraduateCount = 0;
+            let olderGraduateCount = 0;
+            
+            graduates.forEach(graduate => {
+                const row = createGraduateRow(graduate);
+                
+                if (isRecentGraduate(graduate)) {
+                    recentBody.appendChild(row);
+                    recentGraduateCount++;
+                } else {
+                    olderBody.appendChild(row);
+                    olderGraduateCount++;
+                }
+            });
+            
+            // Update counts
+            recentCount.textContent = recentGraduateCount;
+            olderCount.textContent = olderGraduateCount;
+            
+            // Show/hide sections based on content
+            recentSection.style.display = recentGraduateCount > 0 ? 'block' : 'none';
+            olderSection.style.display = olderGraduateCount > 0 ? 'block' : 'none';
+        }
+
+        // Render all graduates with separation (initial load from SSE)
+        function renderGraduates(graduates) {
+            graduateCount = graduates.length;
+            
+            if (graduates.length === 0) {
+                document.getElementById('moralisEmptyState').style.display = 'block';
+                document.getElementById('moralisTableContainer').style.display = 'none';
+                return;
+            }
+            
+            // Store all graduates for sorting
+            allGraduates = [];
+            graduates.forEach(graduate => {
+                if (!seenGraduates.has(graduate.mint)) {
+                    seenGraduates.add(graduate.mint);
+                    allGraduates.push(graduate);
+                }
+            });
+            
+            // Render with current sort (default: newest first)
+            sortGraduates();
+        }
+        
+        // Update existing graduate or add new graduate
+        function updateOrAddGraduate(graduate) {
+            // First check if this graduate already exists in our array
+            const existingIndex = allGraduates.findIndex(g => g.mint === graduate.mint);
+            
+            if (existingIndex !== -1) {
+                // Update existing graduate with new data
+                allGraduates[existingIndex] = { ...allGraduates[existingIndex], ...graduate };
+                console.log(`📊 Updated graduate data for ${graduate.mint}`);
+                
+                // Re-render to show updated data
+                sortGraduates();
+            } else {
+                // Add new graduate
+                addNewGraduate(graduate);
+            }
+        }
+
+        // Add new graduate to appropriate section
+        function addNewGraduate(graduate) {
+            if (seenGraduates.has(graduate.mint)) return;
+            
+            seenGraduates.add(graduate.mint);
+            
+            // Add to allGraduates array for sorting
+            allGraduates.unshift(graduate);
+            
+            // Keep only last 100 graduates
+            if (allGraduates.length > 100) {
+                allGraduates.splice(100);
+            }
+            
+            const emptyState = document.getElementById('moralisEmptyState');
+            const tableContainer = document.getElementById('moralisTableContainer');
+            
+            // Show table if first graduate
+            if (graduateCount === 0) {
+                emptyState.style.display = 'none';
+                tableContainer.style.display = 'block';
+            }
+            
+            graduateCount++;
+            
+            // Re-render with current sort to maintain order
+            sortGraduates();
+            
+            // Highlight the new graduate briefly
+            setTimeout(() => {
+                const allRows = document.querySelectorAll('#recentGraduatesBody tr, #olderGraduatesBody tr');
+                allRows.forEach(row => {
+                    const mintCell = row.querySelector('.token-mint');
+                    if (mintCell && mintCell.title === graduate.mint) {
+                        row.style.background = '#e8f5e8';
+                        setTimeout(() => {
+                            row.style.background = '';
+                        }, 2000);
+                    }
+                });
+            }, 100);
+        }
+        
+        // Refresh trading data (free Dexscreener API calls only)
+        function refreshTradingData() {
+            const button = document.getElementById('refreshTradingData');
+            const originalText = button.innerHTML;
+            
+            // Show loading state
+            button.innerHTML = '<span>⏳</span><span>Refreshing...</span>';
+            button.disabled = true;
+            
+            // Call backend endpoint to refresh trading data
+            fetch('/api/refresh-trading-data', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Trading data refresh initiated:', data);
+                    
+                    // Reset button after 5 seconds
+                    setTimeout(() => {
+                        button.innerHTML = originalText;
+                        button.disabled = false;
+                    }, 5000);
+                })
+                .catch(error => {
+                    console.error('Failed to refresh trading data:', error);
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                });
+        }
+
+        // Test Telegram notification
+        function testTelegram() {
+            const button = document.getElementById('testTelegramBtn');
+            const originalText = button.innerHTML;
+            
+            // Show loading state
+            button.innerHTML = '<span>⏳</span><span>Sending...</span>';
+            button.disabled = true;
+            button.className = 'scanner-btn scanner-running';
+            
+            // Call backend endpoint to send test telegram message
+            fetch('/api/test-telegram', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Test Telegram message sent:', data);
+                    
+                    // Show success state briefly
+                    button.innerHTML = '<span>✅</span><span>Sent!</span>';
+                    
+                    // Reset button after 3 seconds
+                    setTimeout(() => {
+                        button.innerHTML = originalText;
+                        button.disabled = false;
+                        button.className = 'scanner-btn scanner-stopped';
+                    }, 3000);
+                })
+                .catch(error => {
+                    console.error('Failed to send test Telegram message:', error);
+                    
+                    // Show error state briefly
+                    button.innerHTML = '<span>❌</span><span>Failed</span>';
+                    
+                    // Reset button after 3 seconds
+                    setTimeout(() => {
+                        button.innerHTML = originalText;
+                        button.disabled = false;
+                        button.className = 'scanner-btn scanner-stopped';
+                    }, 3000);
+                });
+        }
+
+        // Initialize app - connect to both SSE streams
+        function initializeApp() {
+            console.log('Connecting to live pool scanner...');
+            connectSSE();
+            // Moralis SSE will connect when tab is switched
+        }
+        
+        // Initialize on page load
+        initializeApp();
+    </script>
+</body>
+</html>
