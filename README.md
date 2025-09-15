@@ -1,88 +1,256 @@
-# Solana Pool Tracker
+# 🎓 Pump.fun Graduation Tracker
 
-Real-time tracking of Solana liquidity pools and pump.fun token graduations with Telegram notifications.
+Real-time tracking and monitoring of pump.fun tokens graduating to Raydium DEX with Telegram notifications. Built with Cloudflare Workers, Durable Objects, and modern glassmorphism UI.
 
-## Features
+## 📺 **Live Demo**
+🌐 **Frontend:** https://807bbb66.solana-pool-tracker.pages.dev  
+⚡ **Backend:** https://solana-worker.arkitekjunk.workers.dev
 
-- **New Pools (Helius)**: Monitor new liquidity pool creations across Raydium, Orca, and Meteora DEXs
-- **Graduated Tokens (PumpPortal)**: Real-time tracking of pump.fun tokens graduating to DEXs
-- **Telegram Notifications**: Instant alerts when tokens graduate with price, market cap, and trading data
-- **Auto Data Refresh**: Automatic updates every 10 minutes with latest trading metrics
+## ✨ **Features**
 
-## How It Works
+### 🎯 **Core Functionality**
+- **Real-time Graduation Tracking**: Monitor pump.fun tokens graduating to Raydium DEX instantly
+- **Token Images**: Automatic fetching from multiple CDNs (Jupiter, Solana Token List, Dexscreener)
+- **Price Updates**: Live trading data refresh with actual API calls to Dexscreener
+- **Telegram Notifications**: Instant alerts with price, market cap, and trading metrics
+- **Persistent Storage**: SQLite-backed storage in Cloudflare Durable Objects
+- **No Rate Limits**: Unlimited token storage (removed 100 token limit)
 
-### Pool Tracking (Helius WebSocket)
-- Monitors program IDs for Raydium, Orca, and Meteora DEXs
-- Captures new liquidity pool creations in real-time
-- Displays pool details, liquidity amounts, and trading pairs
+### 🎨 **Modern UI**
+- **Midnight Aurora Theme**: Beautiful gradient background with cosmic colors
+- **Glassmorphism Design**: Transparent containers with backdrop blur effects
+- **Animated Background**: Floating particles and geometric shapes
+- **Robot Logo**: Integrated robot_head.png with rainbow hover effects
+- **Responsive Design**: Works perfectly on desktop and mobile
+- **Live Statistics**: Real-time counts for total, 24h, and 7-day graduates
 
-### Graduation Tracking (PumpPortal WebSocket - FREE)
-- Connects to PumpPortal's WebSocket for real-time pump.fun events
-- Detects when tokens graduate from pump.fun to Raydium (reach $69K market cap)
-- Fetches additional trading data from Dexscreener API
-- Implements retry logic for tokens with delayed data indexing
+## 🏗️ **Architecture**
 
-### Telegram Integration
-- Sends notifications immediately when tokens graduate
-- Confirms data availability before sending (price, market cap, name)
-- Handles special characters in token names safely
-- Includes pump.fun links and trading metrics in notifications
+### 🔄 **Current Deployment (Cloud-Based)**
+```
+┌─────────────────────┐    ┌──────────────────────┐    ┌─────────────────────┐
+│   Cloudflare Pages  │    │  Cloudflare Workers  │    │   PumpPortal API    │
+│   (Frontend UI)     │◄──►│   (Durable Objects)  │◄──►│   (WebSocket)       │
+│                     │    │                      │    │                     │
+│ • Glassmorphism UI  │    │ • WebSocket Handler  │    │ • subscribeMigration│
+│ • Token Images      │    │ • Persistent Storage │    │ • Real-time events  │
+│ • Price Updates     │    │ • Telegram Alerts   │    │                     │
+│ • Live Statistics   │    │ • Data Enrichment   │    │                     │
+└─────────────────────┘    └──────────────────────┘    └─────────────────────┘
+                                       │
+                                       ▼
+                           ┌──────────────────────┐
+                           │   Dexscreener API    │
+                           │ • Token metadata     │
+                           │ • Price & volume     │
+                           │ • Market cap data    │
+                           │ • Trading metrics    │
+                           └──────────────────────┘
+```
 
-## Setup
+### 📁 **Project Structure**
+```
+solana-pool-tracker/
+├── 📂 public/                     # Frontend (Cloudflare Pages)
+│   ├── 🎨 index.html             # Main UI with glassmorphism design
+│   └── 🤖 robot_head.png         # Logo asset
+├── 📂 solana-worker/             # Backend (Cloudflare Workers)
+│   ├── ⚙️ index.js               # Main worker routing
+│   ├── 🔄 pumpportal-do.js       # Durable Object with WebSocket logic
+│   └── 📋 wrangler.toml          # Cloudflare configuration
+├── 📂 server.js                  # Local Node.js version (inactive)
+└── 📖 README.md                  # This documentation
+```
 
-1. Copy `.env.example` to `.env`
-2. Configure your API keys:
+## 🚀 **Quick Start**
+
+### ☁️ **Cloud Deployment (Recommended)**
+The tracker is already deployed and running in the cloud. No setup required!
+
+### 🛠️ **Local Development**
+1. **Clone & Install**
+   ```bash
+   git clone <repository>
+   cd solana-pool-tracker
+   npm install
    ```
-   HELIUS_API_KEY=your_helius_api_key_here
-   TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here (optional)
-   TELEGRAM_CHAT_ID=your_chat_id_here (optional)
+
+2. **Configure Environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys
    ```
-3. Run `node server.js`
 
-## Usage
+3. **Deploy to Cloudflare**
+   ```bash
+   # Deploy backend
+   cd solana-worker
+   wrangler deploy
+   
+   # Deploy frontend
+   cd ..
+   wrangler pages deploy public --project-name solana-pool-tracker
+   ```
 
-The app provides a tabbed interface:
+## 🔧 **Configuration**
 
-1. **New Pools (Helius)**: Live liquidity pool creations with refresh controls
-2. **Graduated Tokens**: pump.fun graduates with trading data and Telegram test button
+### 🔐 **Required Secrets (Cloudflare Workers)**
+```bash
+# Set via Cloudflare dashboard or wrangler
+wrangler secret put TELEGRAM_BOT_TOKEN
+wrangler secret put TELEGRAM_CHAT_ID
+```
 
-### Telegram Setup (Optional)
-1. Create a bot via @BotFather on Telegram
-2. Get your chat ID by messaging @userinfobot
-3. Add credentials to `.env`
-4. Use the "Test Telegram" button to verify setup
+### 📱 **Telegram Setup**
+1. Create bot: Message @BotFather → `/newbot`
+2. Get chat ID: Message @userinfobot
+3. Add secrets to Cloudflare Workers
+4. Test via "Test Telegram" button in UI
 
-## API Endpoints
+## 📡 **API Reference**
 
-- `GET /helius/events`: SSE stream for new pool events
-- `GET /moralis/events`: SSE stream for graduate events  
-- `GET /moralis/health`: Health check for graduation tracking
-- `POST /api/scanner/start`: Start pool scanner
-- `POST /api/scanner/stop`: Stop pool scanner
-- `POST /api/data/clear`: Clear cached data
-- `POST /api/test-telegram`: Send test notification
+### 🔗 **Endpoints**
+- `GET /pumpportal/events` - Server-Sent Events for live graduation feed
+- `GET /pumpportal/health` - Health check and connection status
+- `POST /pumpportal/connect` - Force WebSocket reconnection
+- `POST /api/test-telegram` - Send test notification
 
-## Technical Details
+### 📊 **Data Flow**
+1. **PumpPortal WebSocket** → Receives graduation events
+2. **Durable Object** → Processes and stores data
+3. **Dexscreener API** → Enriches with trading data and images
+4. **Frontend SSE** → Real-time updates to UI
+5. **Telegram API** → Sends notifications
 
-### Data Sources
-- **PumpPortal WebSocket**: Free real-time pump.fun graduation events
-- **Helius WebSocket**: Solana program monitoring with paid API
-- **Dexscreener API**: Free trading data (price, volume, market cap)
+## 🎨 **UI Features**
 
-### Reliability Features
-- Multi-retry system for tokens with delayed data (10s, 25s, 40s intervals)
-- Fallback to pump.fun data when DEX pairs aren't indexed yet
-- Proper error handling and connection recovery
-- Shell escaping for special characters in notifications
+### 🌙 **Midnight Aurora Theme**
+- **Gradient**: Deep blues and purples (`#0f0c29` → `#0f4c75`)
+- **Particles**: Floating animated elements with glow effects
+- **Glassmorphism**: Semi-transparent containers with backdrop blur
+- **Typography**: White text with proper contrast
 
-### Performance
-- Efficient caching with 100-token history limit
-- Auto-refresh every 10 minutes to keep data current
-- Duplicate detection to prevent reprocessing
+### 🖼️ **Token Display**
+- **Images**: Multi-source fallback (Jupiter, Solana Token List, Dexscreener)
+- **Metadata**: Name, symbol, mint address truncation
+- **Trading Data**: Price, 24h change, volume, market cap
+- **Links**: Direct links to Pump.fun, Solscan, Dexscreener
 
-## Configuration
+### 📱 **Responsive Design**
+- **Desktop**: Full table with all columns
+- **Mobile**: Optimized layout with stacked information
+- **Touch**: Large tap targets for mobile interaction
 
-- `PORT`: Server port (default: 3000)
-- `HELIUS_API_KEY`: Required for pool monitoring
-- `TELEGRAM_BOT_TOKEN`: Optional for notifications
-- `TELEGRAM_CHAT_ID`: Optional for notifications
+## 💾 **Data Management**
+
+### 🗃️ **Storage**
+- **Type**: SQLite in Cloudflare Durable Objects
+- **Capacity**: 1GB free tier (far exceeds needs)
+- **Persistence**: Automatic data persistence across deployments
+- **Backup**: Data survives worker restarts and deployments
+
+### 🔄 **Data Refresh**
+- **Manual**: "Update Prices" button fetches latest data
+- **Automatic**: New graduations auto-enrich after 8s delay
+- **Rate Limiting**: 200ms delays between API calls
+- **Error Handling**: Continues on individual token failures
+
+## 🐛 **Troubleshooting**
+
+### ❌ **Common Issues**
+
+#### 🔌 **WebSocket Disconnected**
+- **Symptom**: Status shows "Disconnected"
+- **Solution**: Click "Refresh" button to reconnect
+- **Prevention**: Auto-reconnection with exponential backoff
+
+#### 📷 **Images Not Loading**
+- **Symptom**: Only fallback coin emojis show
+- **Cause**: New tokens not yet indexed by CDNs
+- **Solution**: Click "Update Prices" to retry image fetching
+- **Timeline**: Images usually available within hours of graduation
+
+#### 📱 **Telegram Not Working**
+- **Check**: Secrets are set in Cloudflare Workers dashboard
+- **Test**: Use "Test Telegram" button in UI
+- **Verify**: Bot token and chat ID are correct
+
+#### 🎯 **Missing Graduations**
+- **Check**: WebSocket connection status in UI
+- **Debug**: Browser console shows detailed logs
+- **Reset**: Use "Refresh" button to force reconnection
+
+## 📈 **Monitoring & Analytics**
+
+### 📊 **Built-in Statistics**
+- **Total Graduates**: All-time graduation count
+- **Last 24 Hours**: Recent graduation activity
+- **Last 7 Days**: Weekly graduation trends
+- **Live Updates**: Real-time counter updates
+
+### 🔍 **Debugging**
+- **Browser Console**: Detailed API logs and WebSocket events
+- **Status Indicators**: Visual connection status
+- **Error Messages**: Clear error reporting for failed operations
+
+## 🚨 **For Next AI Assistant**
+
+### 🔥 **Critical Information**
+
+#### 🏗️ **Architecture Understanding**
+- **WORKING VERSION**: Cloud deployment (Cloudflare Pages + Workers)
+- **INACTIVE VERSION**: Local server.js (kept for reference only)
+- **DO NOT**: Modify server.js - it's the old local version
+- **ALWAYS**: Make changes to `solana-worker/` directory for backend
+
+#### 🔑 **Key Components**
+1. **pumpportal-do.js**: Core WebSocket logic, NEVER change subscription method
+2. **index.html**: Complete frontend, includes all animations and styling
+3. **wrangler.toml**: Deployment config, uses SQLite Durable Objects
+
+#### ⚠️ **Critical Code Points**
+```javascript
+// EXACT working subscription - DO NOT CHANGE
+const subscribeMessage = { method: "subscribeMigration" };
+
+// EXACT graduation detection - DO NOT CHANGE  
+if (message.txType === 'migrate' && message.mint && message.pool === 'pump-amm')
+```
+
+#### 🎨 **Theme & Styling**
+- **Current Theme**: Midnight Aurora (`--midnight-aurora` gradient)
+- **Colors**: Deep blues/purples with white text
+- **Animations**: Floating particles + geometric shapes at z-index 0
+- **Images**: Multi-CDN fallback system implemented
+
+#### 📱 **Deployment Commands**
+```bash
+# Backend
+cd solana-worker && wrangler deploy
+
+# Frontend  
+cd /Users/benwatts/solana-pool-tracker && wrangler pages deploy public --project-name solana-pool-tracker
+```
+
+#### 🛡️ **What NOT to Touch**
+- WebSocket subscription method (causes graduation detection to break)
+- Durable Object storage logic (data persistence)
+- CORS headers in SSE handling
+- Core gradient theme variables (user-approved)
+
+#### 🔧 **Safe to Modify**
+- UI styling and layout
+- Animation effects and particles
+- Token image sources and fallbacks
+- Trading data display formatting
+- Additional API endpoints
+
+### 🎯 **Known Working State**
+- ✅ Graduation tracking: WORKING (fixed subscription method)
+- ✅ Price updates: WORKING (real API calls implemented)  
+- ✅ Token images: WORKING (multi-CDN fallback)
+- ✅ Telegram notifications: WORKING
+- ✅ Animations: WORKING (midnight theme)
+- ✅ Responsive design: WORKING
+
+Last verified: September 15, 2025 - All systems operational

@@ -7,9 +7,34 @@ export class PumpPortalTracker {
     this.connected = false;
     this.graduatedTokens = [];
     this.sseClients = new Set(); // Track connected SSE clients
+    this.initialized = false;
+  }
+
+  async ensureInitialized() {
+    if (this.initialized) return;
+    
+    // Load persisted graduates from storage
+    const stored = await this.state.storage.get('graduatedTokens');
+    this.graduatedTokens = stored || [];
+    
+    console.log(`📚 Loaded ${this.graduatedTokens.length} stored graduates from persistent storage`);
+    this.initialized = true;
+    
+    // Auto-reconnect if not connected (handles Durable Object restarts)
+    if (!this.connected && !this.websocket) {
+      console.log('🔄 Auto-reconnecting WebSocket on Durable Object initialization...');
+      try {
+        await this.connectToPumpPortal();
+        this.connected = true;
+        console.log('✅ Auto-reconnection successful');
+      } catch (error) {
+        console.error('❌ Auto-reconnection failed:', error.message);
+      }
+    }
   }
 
   async fetch(request) {
+    await this.ensureInitialized();
     const url = new URL(request.url);
     
     if (url.pathname === '/connect') {
@@ -25,11 +50,104 @@ export class PumpPortalTracker {
         connected: this.connected,
         graduates: this.graduatedTokens.length
       }), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': '*'
+        }
       });
     }
     
+    if (url.pathname === '/update-graduates' && request.method === 'POST') {
+      return this.handleUpdateGraduates(request);
+    }
+    
+    if (url.pathname === '/heartbeat') {
+      return this.handleHeartbeat();
+    }
+    
     return new Response('PumpPortal Durable Object', { status: 404 });
+  }
+
+  async handleUpdateGraduates(request) {
+    try {
+      const updatedGraduates = await request.json();
+      
+      if (!Array.isArray(updatedGraduates)) {
+        return new Response('Invalid data format', { status: 400 });
+      }
+      
+      // Update the stored graduates data
+      this.graduatedTokens = updatedGraduates;
+      
+      // Persist to storage
+      await this.state.storage.put('graduatedTokens', this.graduatedTokens);
+      console.log(`💾 Updated and saved ${this.graduatedTokens.length} graduates to persistent storage`);
+      
+      return new Response(JSON.stringify({
+        success: true,
+        count: this.graduatedTokens.length,
+        message: 'Graduates data updated successfully'
+      }), {
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': '*'
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error updating graduates data:', error);
+      return new Response(JSON.stringify({
+        success: false,
+        error: error.message
+      }), {
+        status: 500,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': '*'
+        }
+      });
+    }
+  }
+
+  async handleHeartbeat() {
+    // Heartbeat endpoint to keep Durable Object active and check/restore connection
+    const status = {
+      timestamp: new Date().toISOString(),
+      connected: this.connected,
+      graduates: this.graduatedTokens.length,
+      hasWebSocket: !!this.websocket,
+      keepAliveActive: !!this.keepAliveInterval
+    };
+    
+    // If not connected, attempt auto-reconnection
+    if (!this.connected) {
+      console.log('💓 Heartbeat detected disconnection, attempting auto-reconnect...');
+      try {
+        await this.connectToPumpPortal();
+        this.connected = true;
+        status.connected = true;
+        status.reconnected = true;
+        console.log('✅ Heartbeat auto-reconnection successful');
+      } catch (error) {
+        console.error('❌ Heartbeat auto-reconnection failed:', error.message);
+        status.reconnectionError = error.message;
+      }
+    }
+    
+    return new Response(JSON.stringify(status), {
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': '*'
+      }
+    });
   }
 
   async handleConnect() {
@@ -64,6 +182,22 @@ export class PumpPortalTracker {
         };
         
         webSocket.send(JSON.stringify(subscribeMessage));
+        
+        // Set up keepalive ping every 30 seconds to prevent idle disconnection
+        this.keepAliveInterval = setInterval(() => {
+          if (webSocket.readyState === WebSocket.OPEN) {
+            try {
+              webSocket.send(JSON.stringify({ method: "ping" }));
+              console.log('📡 Sent keepalive ping to PumpPortal');
+            } catch (error) {
+              console.error('❌ Keepalive ping failed:', error);
+              clearInterval(this.keepAliveInterval);
+            }
+          } else {
+            console.log('⚠️ WebSocket not open, clearing keepalive');
+            clearInterval(this.keepAliveInterval);
+          }
+        }, 30000);
       });
 
       webSocket.addEventListener('message', async (event) => {
@@ -79,18 +213,27 @@ export class PumpPortalTracker {
         this.connected = false;
         this.websocket = null;
         
-        // Attempt to reconnect after 5 seconds
-        setTimeout(() => {
-          if (!this.connected) {
-            this.connectToPumpPortal();
-          }
-        }, 5000);
+        // Clear keepalive interval
+        if (this.keepAliveInterval) {
+          clearInterval(this.keepAliveInterval);
+          this.keepAliveInterval = null;
+        }
+        
+        // Note: Can't use setTimeout in Cloudflare Workers Durable Objects reliably
+        // Reconnection will be handled by frontend health checks and manual reconnection
+        console.log('🔄 WebSocket disconnected - reconnection available via /connect endpoint');
       });
 
       webSocket.addEventListener('error', (error) => {
         console.error('PumpPortal WebSocket error:', error);
         this.connected = false;
         this.websocket = null;
+        
+        // Clear keepalive interval
+        if (this.keepAliveInterval) {
+          clearInterval(this.keepAliveInterval);
+          this.keepAliveInterval = null;
+        }
       });
 
       this.websocket = webSocket;
@@ -122,18 +265,21 @@ export class PumpPortalTracker {
     try {
       const message = JSON.parse(data);
       
-      // Debug: Log the full message structure
+      // Debug: Log the full message structure for ALL messages
       console.log('📋 PumpPortal message received:', JSON.stringify(message, null, 2));
       
-      // Check for pump.fun migration/graduation event (same format as working local server)
+      // Check for pump.fun migration/graduation event (EXACT same logic as working local server)
       if (message.txType === 'migrate' && message.mint && message.pool === 'pump-amm') {
         console.log(`🎓 PUMP.FUN GRADUATION DETECTED: ${message.mint} (${message.symbol || message.name || 'unnamed'})`);
+        
+        const graduationTime = message.timestamp || new Date().toISOString();
         
         const graduateData = {
           mint: message.mint,
           name: message.name || null,
           symbol: message.symbol || null,
-          graduatedAt: message.timestamp || new Date().toISOString(),
+          graduatedAt: graduationTime,
+          timestamp: graduationTime, // Frontend expects this field for Time column
           liquidityUsd: message.liquidityUsd || message.initialBuy || null,
           priceUsd: message.priceUsd || null,
           graduationPairAddress: message.pairAddress || null,
@@ -144,17 +290,26 @@ export class PumpPortalTracker {
         // Fetch additional token metadata and price data
         await this.enrichTokenData(graduateData);
         
-        // Add to cache (keep last 100)
+        // Add to persistent storage (no limit)
         this.graduatedTokens.unshift(graduateData);
-        if (this.graduatedTokens.length > 100) {
-          this.graduatedTokens = this.graduatedTokens.slice(0, 100);
-        }
+
+        // Persist to storage
+        await this.state.storage.put('graduatedTokens', this.graduatedTokens);
+        console.log(`💾 Saved ${this.graduatedTokens.length} graduates to persistent storage`);
 
         // Send Telegram notification
         await this.sendTelegramNotification(graduateData);
         
         // Broadcast to all connected SSE clients
         this.broadcastToSSEClients(graduateData);
+      } else if (message.txType === 'migrate') {
+        console.log(`⏭️  Skipping non-pump.fun migration: ${message.mint} (pool: ${message.pool})`);
+      } else {
+        // Log why the message was rejected for debugging
+        const hasType = message.txType || message.type || message.event || 'none';
+        const hasMint = message.mint ? 'yes' : 'no';
+        const hasPool = message.pool || message.dex || 'none';
+        console.log(`🚫 Message rejected - txType/type/event: ${hasType}, mint: ${hasMint}, pool/dex: ${hasPool}`);
       }
     } catch (error) {
       console.error('Error processing PumpPortal message:', error);
@@ -175,9 +330,32 @@ export class PumpPortalTracker {
         
         graduateData.name = graduatedPair.baseToken.name;
         graduateData.symbol = graduatedPair.baseToken.symbol;
+        
+        // Try multiple image sources
+        graduateData.tokenImage = graduatedPair.baseToken.image || 
+                                 graduatedPair.info?.imageUrl || 
+                                 graduatedPair.info?.image ||
+                                 graduatedPair.baseToken?.logoURI ||
+                                 null;
+        
+        if (graduateData.tokenImage) {
+          console.log(`🖼️ Found image for ${graduateData.symbol}: ${graduateData.tokenImage}`);
+        } else {
+          console.log(`📷 No image found for ${graduateData.symbol}`);
+        }
         graduateData.priceUsd = parseFloat(graduatedPair.priceUsd) || 0;
         graduateData.marketCap = graduatedPair.marketCap || 0;
         graduateData.dexscreenerUrl = graduatedPair.url;
+        
+        // Add trading data that frontend expects
+        graduateData.volume24h = graduatedPair.volume?.h24 || null;
+        graduateData.volume1h = graduatedPair.volume?.h1 || null;
+        graduateData.txns24h = graduatedPair.txns?.h24 || null;
+        graduateData.txns1h = graduatedPair.txns?.h1 || null;
+        graduateData.priceChange24h = graduatedPair.priceChange?.h24 || null;
+        graduateData.priceChange1h = graduatedPair.priceChange?.h1 || null;
+        
+        console.log(`📊 Enriched ${graduateData.symbol} with trading data: Vol24h=$${graduateData.volume24h || 'N/A'}, Change24h=${graduateData.priceChange24h || 'N/A'}%`);
       }
     } catch (error) {
       console.error('Error enriching token data:', error);

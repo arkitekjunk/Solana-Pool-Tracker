@@ -43,11 +43,49 @@ export default {
     if (url.pathname === '/pumpportal/connect') {
       return durableObject.fetch(new Request(request.url.replace(url.pathname, '/connect'), request));
     }
+    
+    if (url.pathname === '/pumpportal/update-graduates' && request.method === 'POST') {
+      return durableObject.fetch(new Request(request.url.replace(url.pathname, '/update-graduates'), request));
+    }
+    
+    if (url.pathname === '/pumpportal/heartbeat') {
+      return durableObject.fetch(new Request(request.url.replace(url.pathname, '/heartbeat'), request));
+    }
 
     // Default response
     return new Response('Solana Pool Tracker Worker with Durable Objects', { 
       headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
     });
+  },
+
+  // Cron trigger handler - runs every 2 minutes to keep Durable Object alive
+  async scheduled(event, env, ctx) {
+    console.log('⏰ Cron trigger fired to keep system alive');
+    
+    try {
+      // Get Durable Object instance and ping heartbeat
+      const durableObjectId = env.PUMPPORTAL_TRACKER.idFromName('singleton');
+      const durableObject = env.PUMPPORTAL_TRACKER.get(durableObjectId);
+      
+      // Send heartbeat request to keep DO alive and check/restore connection
+      const heartbeatRequest = new Request('https://dummy.url/heartbeat');
+      const response = await durableObject.fetch(heartbeatRequest);
+      const status = await response.json();
+      
+      console.log('💓 Cron heartbeat result:', {
+        connected: status.connected,
+        graduates: status.graduates,
+        reconnected: status.reconnected || false,
+        timestamp: status.timestamp
+      });
+      
+      if (status.reconnected) {
+        console.log('🔄 Cron trigger successfully reconnected WebSocket');
+      }
+      
+    } catch (error) {
+      console.error('❌ Cron trigger heartbeat failed:', error);
+    }
   }
 };
 
